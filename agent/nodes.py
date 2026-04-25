@@ -3,6 +3,7 @@ import shlex
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_anthropic import ChatAnthropic
 from tools import Sandbox
+from memory import should_summarize, summarize_messages
 
 from config import (
     MODEL_NAME, TEMPERATURE,
@@ -12,11 +13,11 @@ from config import (
 from agent.state import AgentState
 
 
-# ── Model instance ─────────────────────────────────────────────────────────
+#  Model instance 
 model = ChatAnthropic(model=MODEL_NAME, temperature=TEMPERATURE)
 
 
-# ── Node 1: Developer ──────────────────────────────────────────────────────
+#  Node 1: Developer 
 def call_model(state: AgentState) -> dict:
     """
     The Developer agent. Thinks about the task and decides what
@@ -28,7 +29,7 @@ def call_model(state: AgentState) -> dict:
     return {"messages": [response]}
 
 
-# ── Node 2: Executor ───────────────────────────────────────────────────────
+#  Node 2: Executor 
 def execute_command(state: AgentState) -> dict:
     """
     Reads the last message, extracts any <run> command, and executes it
@@ -63,13 +64,13 @@ def execute_command(state: AgentState) -> dict:
     }
 
 
-# ── Node 3: Reviewer ───────────────────────────────────────────────────────
+# Node 3
 def review_output(state: AgentState) -> dict:
     """
     The Reviewer agent. Reads the original task, full conversation and
     terminal history, then decides if the work is complete and correct.
     """
-    # Pull the original task from the very first human message
+    
     original_task = state["messages"][0].content
 
     # Build the full terminal log
@@ -97,3 +98,20 @@ def review_output(state: AgentState) -> dict:
             "messages": [HumanMessage(content=f"Reviewer feedback:\n{verdict}")],
             "reviewer_decision": "needs_work"
         }
+
+def maybe_summarize(state: AgentState) -> dict:
+    """
+    Checks if the conversation is getting long and compresses it if so.
+    Runs silently — if no summarization needed, returns nothing.
+    """
+    messages = state["messages"]
+
+    if should_summarize(messages):
+        print("\n--- Summarizing conversation history ---")
+        compressed = summarize_messages(messages)
+        return {
+            "messages": compressed,
+            "conversation_summary": "summarized"
+        }
+
+    return {}

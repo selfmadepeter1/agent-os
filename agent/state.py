@@ -13,5 +13,11 @@ class AgentState(TypedDict):
     
     reviewer_decision: str
 
-    
+    # The persistent sandbox container for this task
     sandbox: Any
+
+    
+    original_task: str
+
+    
+    conversation_summary: str
