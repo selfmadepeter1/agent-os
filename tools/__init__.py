@@ -1,1 +1,1 @@
-from .sandbox import run_in_sandbox
+from .sandbox import Sandbox

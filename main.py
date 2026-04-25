@@ -2,6 +2,7 @@ from dotenv import load_dotenv
 from langchain_core.messages import HumanMessage
 
 from agent.graph import build_graph
+from tools import Sandbox
 
 load_dotenv()
 
@@ -9,28 +10,38 @@ load_dotenv()
 def run(task: str):
     """
     Runs the agent on a given task string.
-    Streams output node by node as the agent works.
+    Creates a persistent sandbox for the task lifetime.
     """
     app = build_graph()
+    sandbox = Sandbox()
 
-    inputs = {
-        "messages": [HumanMessage(content=task)],
-        "terminal_history": [],
-    }
+    try:
+        sandbox.start()
 
-    terminal_history = []
+        inputs = {
+            "messages": [HumanMessage(content=task)],
+            "terminal_history": [],
+            "reviewer_decision": "",
+            "sandbox": sandbox,
+        }
 
-    for event in app.stream(inputs):
-        node_name = list(event.keys())[0]
-        state = event[node_name]
+        terminal_history = []
 
-        print(f"\n--- [{node_name}] ---")
+        for event in app.stream(inputs):
+            node_name = list(event.keys())[0]
+            state = event[node_name]
 
-        if state.get("messages"):
-            print(state["messages"][-1].content)
+            print(f"\n--- [{node_name}] ---")
 
-        if state.get("terminal_history"):
-            terminal_history.extend(state["terminal_history"])
+            if state.get("messages"):
+                print(state["messages"][-1].content)
+
+            if state.get("terminal_history"):
+                terminal_history.extend(state["terminal_history"])
+
+    finally:
+        
+        sandbox.stop()
 
     print("\n=== Terminal History ===")
     for entry in terminal_history:

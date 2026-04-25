@@ -1,4 +1,4 @@
-from typing import Annotated, TypedDict, List
+from typing import Annotated, TypedDict, List, Any
 from operator import add
 from langchain_core.messages import BaseMessage
 
@@ -9,3 +9,9 @@ class AgentState(TypedDict):
 
     
     terminal_history: Annotated[List[str], add]
+
+    
+    reviewer_decision: str
+
+    
+    sandbox: Any
