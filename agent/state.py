@@ -3,6 +3,12 @@ from operator import add
 from langchain_core.messages import BaseMessage
 
 
+class SubTask(TypedDict):
+    id: int
+    description: str
+    status: str  
+
+
 class AgentState(TypedDict):
     
     messages: Annotated[List[BaseMessage], add]
@@ -21,3 +27,12 @@ class AgentState(TypedDict):
 
     
     conversation_summary: str
+
+    
+    task_plan: List[SubTask]
+
+    
+    current_task_index: int
+
+    
+    retry_count: int
