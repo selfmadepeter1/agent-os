@@ -17,10 +17,8 @@ def run(task: str):
     app = build_graph()
     sandbox = Sandbox()
 
-    
     past_context = get_relevant_context(task)
 
-    
     if past_context:
         print("\n--- Loading memory context ---")
         print(past_context)
@@ -30,6 +28,9 @@ def run(task: str):
         ]
     else:
         initial_messages = [HumanMessage(content=task)]
+
+    terminal_history = []
+    final_decision = "unknown"
 
     try:
         sandbox.start()
@@ -41,10 +42,10 @@ def run(task: str):
             "sandbox": sandbox,
             "original_task": task,
             "conversation_summary": "",
+            "task_plan": [],
+            "current_task_index": 0,
+            "retry_count": 0,
         }
-
-        terminal_history = []
-        final_decision = "unknown"
 
         for event in app.stream(inputs):
             node_name = list(event.keys())[0]
@@ -58,15 +59,21 @@ def run(task: str):
             if state.get("terminal_history"):
                 terminal_history.extend(state["terminal_history"])
 
-            
             if state.get("reviewer_decision"):
                 final_decision = state["reviewer_decision"]
 
     finally:
         sandbox.stop()
 
-    # 
-    final_decision = inputs.get("reviewer_decision", "unknown")
+    # ── Print task plan summary ─────────────────────────────────────────
+    task_plan = inputs.get("task_plan", [])
+    if task_plan:
+        print("\n=== Task Plan Summary ===")
+        for subtask in task_plan:
+            icon = "✓" if subtask["status"] == "done" else "✗"
+            print(f"  [{icon}] {subtask['description']}")
+
+    
     save_task(task, terminal_history, final_decision)
 
     print("\n=== Terminal History ===")
