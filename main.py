@@ -4,18 +4,15 @@ from langchain_core.messages import HumanMessage
 from agent.graph import build_graph
 from tools import Sandbox
 from memory import save_task, get_relevant_context
+from observability import RunTracker
 
 load_dotenv()
 
 
 def run(task: str):
-    """
-    Runs the agent on a given task string.
-    Loads relevant past context before starting.
-    Saves the completed task to memory after finishing.
-    """
     app = build_graph()
     sandbox = Sandbox()
+    tracker = RunTracker()
 
     past_context = get_relevant_context(task)
 
@@ -31,6 +28,7 @@ def run(task: str):
 
     terminal_history = []
     final_decision = "unknown"
+    final_task_plan = []
 
     try:
         sandbox.start()
@@ -45,40 +43,54 @@ def run(task: str):
             "task_plan": [],
             "current_task_index": 0,
             "retry_count": 0,
+            "tracker": tracker,
         }
 
-        for event in app.stream(inputs):
-            node_name = list(event.keys())[0]
-            state = event[node_name]
+        try:
+            for event in app.stream(inputs):
+                node_name = list(event.keys())[0]
+                state = event[node_name]
 
-            print(f"\n--- [{node_name}] ---")
+                print(f"\n--- [{node_name}] ---")
 
-            if state.get("messages"):
-                print(state["messages"][-1].content)
+                if state.get("messages"):
+                    print(state["messages"][-1].content)
 
-            if state.get("terminal_history"):
-                terminal_history.extend(state["terminal_history"])
+                if state.get("terminal_history"):
+                    terminal_history.extend(state["terminal_history"])
 
-            if state.get("reviewer_decision"):
-                final_decision = state["reviewer_decision"]
+                if state.get("reviewer_decision"):
+                    final_decision = state["reviewer_decision"]
+
+                if state.get("task_plan"):
+                    final_task_plan = state["task_plan"]
+
+        except Exception as stream_error:
+            print(f"\n--- Stream ended early: {stream_error} ---")
+            print("--- Continuing to post-run summary ---")
 
     finally:
         sandbox.stop()
 
-    # ── Print task plan summary ─────────────────────────────────────────
-    task_plan = inputs.get("task_plan", [])
-    if task_plan:
-        print("\n=== Task Plan Summary ===")
-        for subtask in task_plan:
-            icon = "✓" if subtask["status"] == "done" else "✗"
-            print(f"  [{icon}] {subtask['description']}")
+    try:
+        if final_task_plan:
+            print("\n=== Task Plan Summary ===")
+            for subtask in final_task_plan:
+                icon = "✓" if subtask["status"] == "done" else "✗"
+                print(f"  [{icon}] {subtask['description']}")
 
-    
-    save_task(task, terminal_history, final_decision)
+        tracker.print_summary()
 
-    print("\n=== Terminal History ===")
-    for entry in terminal_history:
-        print(entry)
+        save_task(task, terminal_history, final_decision)
+
+        print("\n=== Terminal History ===")
+        for entry in terminal_history:
+            print(entry)
+
+    except Exception as e:
+        import traceback
+        print(f"\n--- POST-RUN ERROR: {e} ---")
+        traceback.print_exc()
 
 
 if __name__ == "__main__":
