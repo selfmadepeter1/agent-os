@@ -73,19 +73,27 @@ def run(task: str):
         sandbox.stop()
 
     try:
+        
+
         if final_task_plan:
             print("\n=== Task Plan Summary ===")
             for subtask in final_task_plan:
                 icon = "✓" if subtask["status"] == "done" else "✗"
                 print(f"  [{icon}] {subtask['description']}")
 
+        
         tracker.print_summary()
+        
 
+        
         save_task(task, terminal_history, final_decision)
+        
 
         print("\n=== Terminal History ===")
         for entry in terminal_history:
             print(entry)
+
+        
 
     except Exception as e:
         import traceback
